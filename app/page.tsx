@@ -1,7 +1,7 @@
-import { getPythStakingClient } from "@/action/pythActions";
+import { getOISStakingRewardSize } from "@/action/pythActions";
 
 export default async function Home() {
-  await getPythStakingClient();
+  await getOISStakingRewardSize();
 
   return <div>hi</div>;
 }
