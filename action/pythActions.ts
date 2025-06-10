@@ -13,9 +13,8 @@ export async function getOISStakingRewardSize() {
   const rewards = await getClaimableRewards(client, stakeAccount);
   console.log("Claimable rewards: ", rewards.totalRewards);
   const positions = await client.getStakeAccountPositions(stakeAccount);
-  console.log("Stake account positions: ", positions.data.positions);
-  const publisherStakes: Record<string, bigint> = {};
 
+  const publisherStakes: Record<string, bigint> = {};
   positions.data.positions.forEach((p) => {
     const publisher = p.targetWithParameters.integrityPool?.publisher;
     if (publisher) {
@@ -28,6 +27,14 @@ export async function getOISStakingRewardSize() {
   });
 
   console.log("Staked amount per publisher:", publisherStakes);
+
+  // Sum all amounts for integrity pool positions (OIS staking)
+  const totalStaked = positions.data.positions
+    .filter((p) => p.targetWithParameters.integrityPool?.publisher)
+    .map((p) => p.amount)
+    .reduce((sum, amount) => sum + amount, 0n);
+
+  console.log("Total OIS Staked PYTH:", totalStaked.toString());
 
   return 0;
 }
