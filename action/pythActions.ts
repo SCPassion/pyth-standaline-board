@@ -14,6 +14,20 @@ export async function getOISStakingRewardSize() {
   console.log("Claimable rewards: ", rewards.totalRewards);
   const positions = await client.getStakeAccountPositions(stakeAccount);
   console.log("Stake account positions: ", positions.data.positions);
+  const publisherStakes: Record<string, bigint> = {};
+
+  positions.data.positions.forEach((p) => {
+    const publisher = p.targetWithParameters.integrityPool?.publisher;
+    if (publisher) {
+      const key = publisher.toBase58();
+      if (!publisherStakes[key]) {
+        publisherStakes[key] = 0n;
+      }
+      publisherStakes[key] += p.amount;
+    }
+  });
+
+  console.log("Staked amount per publisher:", publisherStakes);
 
   return 0;
 }
