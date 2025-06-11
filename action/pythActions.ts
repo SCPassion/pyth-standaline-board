@@ -1,6 +1,6 @@
 "use server";
 
-import { type PythStakingInfo } from "@/types/types";
+import type { PythGeneralStats, PythStakingInfo } from "@/types/types";
 import {
   extractPublisherData,
   PythStakingClient,
@@ -30,6 +30,7 @@ export async function getOISStakingInfo(
   const positions = await client.getStakeAccountPositions(stakeAccount);
 
   const StakeForEachPublisher: Record<string, number> = {};
+
   positions.data.positions.forEach((p) => {
     const publisher = p.targetWithParameters.integrityPool?.publisher;
     if (publisher) {
@@ -115,11 +116,9 @@ const sumDelegations = (
  * @description Retrieves general statistics about the Pyth staking pool, including total governance, total staked, and rewards distributed.
  * @returns {Promise<{ totalGovernance: number; totalStaked: number; rewardsDistributed: number }>} - A promise that resolves to an object containing the statistics.
  */
-async function getPythGeneralStats(client: PythStakingClient): Promise<{
-  totalGovernance: number;
-  totalStaked: number;
-  rewardsDistributed: number;
-}> {
+async function getPythGeneralStats(
+  client: PythStakingClient
+): Promise<PythGeneralStats> {
   const [targetAccount, poolData, rewardCustodyAccount] = await Promise.all([
     client.getTargetAccount(),
     client.getPoolDataAccount(),
