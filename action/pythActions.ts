@@ -1,6 +1,10 @@
 "use server";
 
-import type { PythGeneralStats, PythStakingInfo } from "@/types/types";
+import type {
+  MyPublisherInfo,
+  PythGeneralStats,
+  PythStakingInfo,
+} from "@/types/types";
 import {
   extractPublisherData,
   PythStakingClient,
@@ -28,36 +32,26 @@ export async function getOISStakingInfo(
   const claimableRewards = Number(rewards.totalRewards) * 1e-6;
 
   const positions = await client.getStakeAccountPositions(stakeAccount);
+  const publisherPoolData = await getPublisherPoolData(client);
 
-  const StakeForEachPublisher: Record<string, number> = {};
+  const StakeForEachPublisher: MyPublisherInfo[] = [];
 
-  positions.data.positions.forEach((p) => {
+  positions.data.positions.forEach((p, index) => {
     const publisher = p.targetWithParameters.integrityPool?.publisher;
     if (publisher) {
       const key = String(publisher);
-
-      if (!StakeForEachPublisher[key]) {
-        StakeForEachPublisher[key] = 0;
-      }
-      StakeForEachPublisher[key] += Number(p.amount) * 1e-6;
+      StakeForEachPublisher.push({
+        publisherKey: key,
+        stakedAmount: Number(p.amount) * 1e-6,
+        apy: publisherPoolData.find((data) => data.pubkey === key)?.apy ?? 0, // Placeholder, will be updated below
+      });
     }
   });
 
-  const publisherPoolData = await getPublisherPoolData(client);
-  // Get the APY for my publishers
-  const myPublisherAPY: Record<string, number> = {};
-  publisherPoolData.forEach((p) => {
-    const publisher = p.pubkey;
-    if (StakeForEachPublisher[publisher]) {
-      myPublisherAPY[publisher] = p.apy;
-    }
-  });
-  console.log("My Publisher APY:", myPublisherAPY);
-
-  let totalStakedPyth = 0;
-  for (const [publisher, amount] of Object.entries(StakeForEachPublisher)) {
-    totalStakedPyth += amount;
-  }
+  let totalStakedPyth = StakeForEachPublisher.reduce(
+    (acc, publisher) => acc + publisher.stakedAmount,
+    0
+  );
 
   const generalStats = await getPythGeneralStats(client);
 

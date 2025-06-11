@@ -1,5 +1,5 @@
 export type PythStakingInfo = {
-  StakeForEachPublisher: Record<string, number>;
+  StakeForEachPublisher: MyPublisherInfo[];
   totalStakedPyth: number;
   claimableRewards: number;
   generalStats: {
@@ -14,8 +14,6 @@ export type MyPublisherInfo = {
   stakedAmount: number;
   apy: number;
 };
-
-export type MyPublishersInfo = MyPublisherInfo[];
 
 export type PythGeneralStats = {
   totalGovernance: number;
