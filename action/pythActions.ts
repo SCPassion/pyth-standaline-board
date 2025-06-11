@@ -1,11 +1,20 @@
 "use server";
 
 import { type PythStakingInfo } from "@/types/types";
-import { PythStakingClient } from "@pythnetwork/staking-sdk";
+import {
+  extractPublisherData,
+  PythStakingClient,
+} from "@pythnetwork/staking-sdk";
 import { PublicKey, Connection } from "@solana/web3.js";
 
 const INITIAL_REWARD_POOL_SIZE = 60_000_000_000_000n;
 
+/**
+ * Retrieves staking information for a given wallet address and staking address.
+ * @param {string} walletAddress - The public key of the wallet to use.
+ * @param {string} stakingAddress - The public key of the staking account.
+ * @returns {Promise<PythStakingInfo>} - A promise that resolves to an object containing staking information.
+ */
 export async function getOISStakingInfo(
   walletAddress: string,
   stakingAddress: string
@@ -25,12 +34,24 @@ export async function getOISStakingInfo(
     const publisher = p.targetWithParameters.integrityPool?.publisher;
     if (publisher) {
       const key = String(publisher);
+
       if (!StakeForEachPublisher[key]) {
         StakeForEachPublisher[key] = 0;
       }
       StakeForEachPublisher[key] += Number(p.amount) * 1e-6;
     }
   });
+
+  const publisherPoolData = await getPublisherPoolData(client);
+  // Get the APY for my publishers
+  const myPublisherAPY: Record<string, number> = {};
+  publisherPoolData.forEach((p) => {
+    const publisher = p.pubkey;
+    if (StakeForEachPublisher[publisher]) {
+      myPublisherAPY[publisher] = p.apy;
+    }
+  });
+  console.log("My Publisher APY:", myPublisherAPY);
 
   let totalStakedPyth = 0;
   for (const [publisher, amount] of Object.entries(StakeForEachPublisher)) {
@@ -120,4 +141,22 @@ async function getPythGeneralStats(client: PythStakingClient): Promise<{
           rewardCustodyAccount.amount
       ) * 1e-6,
   };
+}
+
+/**
+ * Retrieves the publisher pool data from the Pyth Staking Client.
+ * @param {PythStakingClient} client - The Pyth Staking Client instance.
+ * @returns {Promise<Array<{ totalDelegation: bigint; totalDelegationDelta: bigint; pubkey: string; apy: number }>>} - A promise that resolves to an array of publisher data.
+ */
+async function getPublisherPoolData(client: PythStakingClient) {
+  const poolData = await client.getPoolDataAccount();
+  const publisherData = extractPublisherData(poolData);
+  return publisherData.map(
+    ({ totalDelegation, totalDelegationDelta, pubkey, apyHistory }) => ({
+      totalDelegation,
+      totalDelegationDelta,
+      pubkey: pubkey.toBase58(),
+      apy: apyHistory[apyHistory.length - 1]?.apy ?? 0,
+    })
+  );
 }
