@@ -1,49 +1,50 @@
 "use server";
 
+import { type PythStakingInfo } from "@/types/types";
 import { PythStakingClient } from "@pythnetwork/staking-sdk";
 import { PublicKey, Connection } from "@solana/web3.js";
 
 const INITIAL_REWARD_POOL_SIZE = 60_000_000_000_000n;
 
-export async function getOISStakingRewardSize() {
-  const stakeAccount = new PublicKey(process.env.STAKING_ACCOUNT as string);
-  const walletPublicKey = new PublicKey(
-    process.env.TESTING_WALLET_ADDRESS as string
-  );
+export async function getOISStakingInfo(
+  walletAddress: string,
+  stakingAddress: string
+): Promise<PythStakingInfo> {
+  const stakeAccount = new PublicKey(stakingAddress);
+  const walletPublicKey = new PublicKey(walletAddress);
 
   const client = createPythStakingClient(walletPublicKey);
 
   const rewards = await getClaimableRewards(client, stakeAccount);
-  console.log("Claimable rewards: ", Number(rewards.totalRewards) * 1e-6);
+  const claimableRewards = Number(rewards.totalRewards) * 1e-6;
+
   const positions = await client.getStakeAccountPositions(stakeAccount);
 
-  const publisherStakes: Record<string, number> = {};
+  const StakeForEachPublisher: Record<string, number> = {};
   positions.data.positions.forEach((p) => {
     const publisher = p.targetWithParameters.integrityPool?.publisher;
     if (publisher) {
       const key = String(publisher);
-      if (!publisherStakes[key]) {
-        publisherStakes[key] = 0;
+      if (!StakeForEachPublisher[key]) {
+        StakeForEachPublisher[key] = 0;
       }
-      publisherStakes[key] += Number(p.amount) * 1e-6;
+      StakeForEachPublisher[key] += Number(p.amount) * 1e-6;
     }
   });
 
-  console.log("Staked amount per publisher:", publisherStakes);
-
   let totalStakedPyth = 0;
-  for (const [publisher, amount] of Object.entries(publisherStakes)) {
+  for (const [publisher, amount] of Object.entries(StakeForEachPublisher)) {
     totalStakedPyth += amount;
   }
 
-  console.log("Total Staked PYTH:", totalStakedPyth);
-
   const generalStats = await getPythGeneralStats(client);
-  console.log("Total governance:", generalStats.totalGovernance);
-  console.log("Total staked:", generalStats.totalStaked);
-  console.log("Rewards distributed:", generalStats.rewardsDistributed);
 
-  return 0;
+  return {
+    StakeForEachPublisher,
+    totalStakedPyth,
+    claimableRewards,
+    generalStats,
+  };
 }
 
 /**
