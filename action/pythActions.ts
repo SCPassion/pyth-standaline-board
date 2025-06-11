@@ -4,7 +4,7 @@ import type {
   MyPublisherInfo,
   PythGeneralStats,
   PythStakingInfo,
-} from "@/types/types";
+} from "@/types/pythTypes";
 import {
   extractPublisherData,
   PythStakingClient,
