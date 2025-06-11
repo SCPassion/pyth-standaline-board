@@ -28,39 +28,45 @@ export async function getOISStakingInfo(
 
   const client = createPythStakingClient(walletPublicKey);
 
-  const rewards = await getClaimableRewards(client, stakeAccount);
-  const claimableRewards = Number(rewards.totalRewards) * 1e-6;
+  try {
+    const generalStats = await getPythGeneralStats(client);
+    const rewards = await getClaimableRewards(client, stakeAccount);
+    const positions = await client.getStakeAccountPositions(stakeAccount);
+    const publisherPoolData = await getPublisherPoolData(client);
 
-  const positions = await client.getStakeAccountPositions(stakeAccount);
-  const publisherPoolData = await getPublisherPoolData(client);
+    // Calculate claimable rewards in PYTH
+    const claimableRewards = Number(rewards.totalRewards) * 1e-6;
 
-  const StakeForEachPublisher: MyPublisherInfo[] = [];
+    // Prepare the StakeForEachPublisher array
+    const StakeForEachPublisher: MyPublisherInfo[] = [];
+    positions.data.positions.forEach((p, index) => {
+      const publisher = p.targetWithParameters.integrityPool?.publisher;
+      if (publisher) {
+        const key = String(publisher);
+        StakeForEachPublisher.push({
+          publisherKey: key,
+          stakedAmount: Number(p.amount) * 1e-6,
+          apy: publisherPoolData.find((data) => data.pubkey === key)?.apy ?? 0, // Placeholder, will be updated below
+        });
+      }
+    });
 
-  positions.data.positions.forEach((p, index) => {
-    const publisher = p.targetWithParameters.integrityPool?.publisher;
-    if (publisher) {
-      const key = String(publisher);
-      StakeForEachPublisher.push({
-        publisherKey: key,
-        stakedAmount: Number(p.amount) * 1e-6,
-        apy: publisherPoolData.find((data) => data.pubkey === key)?.apy ?? 0, // Placeholder, will be updated below
-      });
-    }
-  });
+    // update total staked amount for your wallet
+    let totalStakedPyth = StakeForEachPublisher.reduce(
+      (acc, publisher) => acc + publisher.stakedAmount,
+      0
+    );
 
-  let totalStakedPyth = StakeForEachPublisher.reduce(
-    (acc, publisher) => acc + publisher.stakedAmount,
-    0
-  );
-
-  const generalStats = await getPythGeneralStats(client);
-
-  return {
-    StakeForEachPublisher,
-    totalStakedPyth,
-    claimableRewards,
-    generalStats,
-  };
+    return {
+      StakeForEachPublisher,
+      totalStakedPyth,
+      claimableRewards,
+      generalStats,
+    };
+  } catch (error) {
+    console.error("Error retrieving staking information:", error);
+    throw new Error("Failed to retrieve staking information");
+  }
 }
 
 /**
